@@ -94,7 +94,7 @@ const ukChannels: Channel[] = [
   },
 ];
 
-const COUNTRIES = ["All", "USA", "England", "South Africa", "Imported"] as const;
+const COUNTRIES = ["All", "Favorites", "USA", "England", "South Africa", "Imported"] as const;
 const CATEGORIES = [
   "All",
   "News",
@@ -128,6 +128,10 @@ function App() {
   const [hasFetched, setHasFetched] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [favorites, setFavorites] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem("iptv-favorites");
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  });
   const abortRef = useRef<AbortController | null>(null);
 
   // Fetch streams from iptv-org GitHub repository
@@ -197,6 +201,24 @@ function App() {
       if (abortRef.current) abortRef.current.abort();
     };
   }, [fetchStreams]);
+
+  // Save favorites to localStorage
+  useEffect(() => {
+    localStorage.setItem("iptv-favorites", JSON.stringify([...favorites]));
+  }, [favorites]);
+
+  // Toggle favorite
+  const toggleFavorite = useCallback((channelId: string) => {
+    setFavorites((prev) => {
+      const next = new Set(prev);
+      if (next.has(channelId)) {
+        next.delete(channelId);
+      } else {
+        next.add(channelId);
+      }
+      return next;
+    });
+  }, []);
 
   // Handle M3U import
   const handleImport = useCallback((importedChannels: Channel[]) => {
@@ -288,17 +310,27 @@ function App() {
 
 
   // Filter channels
-  const filteredChannels = channels.filter((channel) => {
-    const matchesCountry = selectedCountry === "All" || channel.country === selectedCountry;
-    const matchesCategory = selectedCategory === "All" || channel.category === selectedCategory;
-    const matchesSearch =
-      searchQuery === "" ||
-      channel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      channel.category.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesLive = !showOnlyLive || channelStatuses[channel.id] === "live";
+  const filteredChannels = channels
+    .filter((channel) => {
+      const matchesCountry =
+        selectedCountry === "All" ||
+        channel.country === selectedCountry ||
+        (selectedCountry === "Favorites" && favorites.has(channel.id));
+      const matchesCategory = selectedCategory === "All" || channel.category === selectedCategory;
+      const matchesSearch =
+        searchQuery === "" ||
+        channel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        channel.category.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesLive = !showOnlyLive || channelStatuses[channel.id] === "live";
 
-    return matchesCountry && matchesCategory && matchesSearch && matchesLive;
-  });
+      return matchesCountry && matchesCategory && matchesSearch && matchesLive;
+    })
+    .sort((a, b) => {
+      // Sort favorites first
+      const aFav = favorites.has(a.id) ? 1 : 0;
+      const bFav = favorites.has(b.id) ? 1 : 0;
+      return bFav - aFav;
+    });
 
   const liveCount = Object.values(channelStatuses).filter((s) => s === "live").length;
   const deadCount = Object.values(channelStatuses).filter((s) => s === "dead").length;
@@ -331,6 +363,11 @@ function App() {
               {hasFetched && (
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-lg">
                   <span className="text-blue-300 text-sm font-medium">{channels.length} Streams</span>
+                </div>
+              )}
+              {favorites.size > 0 && (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                  <span className="text-yellow-300 text-sm font-medium">⭐ {favorites.size} Favorites</span>
                 </div>
               )}
               {importedCount > 0 && (
@@ -478,13 +515,21 @@ function App() {
                   <button
                     key={country}
                     onClick={() => setSelectedCountry(country)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1 ${
                       selectedCountry === country
-                        ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                        ? country === "Favorites"
+                          ? "bg-yellow-600 text-white shadow-lg shadow-yellow-500/20"
+                          : "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
                         : "bg-gray-800/50 text-gray-300 hover:bg-gray-700/50 border border-gray-700/50"
                     }`}
                   >
+                    {country === "Favorites" && <span>⭐</span>}
                     {country}
+                    {country === "Favorites" && favorites.size > 0 && (
+                      <span className="bg-white/20 px-1.5 py-0.5 rounded-full text-[10px]">
+                        {favorites.size}
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -560,6 +605,8 @@ function App() {
                 channel={channel}
                 status={channelStatuses[channel.id] || "untested"}
                 onPlay={setSelectedChannel}
+                isFavorite={favorites.has(channel.id)}
+                onToggleFavorite={toggleFavorite}
               />
             ))}
           </div>

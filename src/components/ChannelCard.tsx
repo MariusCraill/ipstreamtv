@@ -4,9 +4,11 @@ interface ChannelCardProps {
   channel: Channel;
   status: ChannelStatus;
   onPlay: (channel: Channel) => void;
+  isFavorite: boolean;
+  onToggleFavorite: (channelId: string) => void;
 }
 
-export default function ChannelCard({ channel, status, onPlay }: ChannelCardProps) {
+export default function ChannelCard({ channel, status, onPlay, isFavorite, onToggleFavorite }: ChannelCardProps) {
   const getCountryFlag = (country: string) => {
     switch (country) {
       case "USA": return "🇺🇸";
@@ -98,7 +100,9 @@ export default function ChannelCard({ channel, status, onPlay }: ChannelCardProp
   return (
     <div
       className={`group relative bg-gray-800/50 backdrop-blur-sm border rounded-xl p-4 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/10 ${
-        status === "dead"
+        isFavorite
+          ? "border-yellow-500/40 bg-yellow-500/5"
+          : status === "dead"
           ? "border-red-500/20 opacity-60"
           : status === "live"
           ? "border-green-500/30 hover:border-green-500/50"
@@ -126,7 +130,25 @@ export default function ChannelCard({ channel, status, onPlay }: ChannelCardProp
             {channel.name}
           </h3>
         </div>
-        {getStatusIndicator()}
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleFavorite(channel.id);
+            }}
+            className={`p-1 rounded-full transition-all ${
+              isFavorite
+                ? "text-yellow-400 hover:text-yellow-300"
+                : "text-gray-500 hover:text-yellow-400 opacity-0 group-hover:opacity-100"
+            }`}
+            title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+          >
+            <svg className="w-4 h-4" fill={isFavorite ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+            </svg>
+          </button>
+          {getStatusIndicator()}
+        </div>
       </div>
 
       <div className="flex items-center gap-2 flex-wrap">
