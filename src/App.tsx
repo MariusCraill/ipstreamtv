@@ -205,10 +205,13 @@ function App() {
     } finally {
       setIsFetching(false);
     }
-  }, []);
+  }, [importedChannels]);
 
   // Auto-fetch on mount
   useEffect(() => {
+    console.log('🚀 App mounted');
+    console.log('📂 Loaded favorites from localStorage:', favorites.size);
+    console.log('📁 Loaded imported channels from localStorage:', importedChannels.length);
     fetchStreams();
     return () => {
       if (abortRef.current) abortRef.current.abort();
@@ -227,19 +230,21 @@ function App() {
 
   // Toggle favorite
   const toggleFavorite = useCallback((channelId: string) => {
-    console.log('Toggling favorite for channel:', channelId);
+    console.log('🔔 Toggling favorite for channel:', channelId);
     setFavorites((prev) => {
       const next = new Set(prev);
       const isCurrentlyFavorite = next.has(channelId);
       if (isCurrentlyFavorite) {
         next.delete(channelId);
-        console.log('Removed from favorites. New count:', next.size);
+        console.log('❌ Removed from favorites. New count:', next.size);
         addToast('Removed from favorites', 'info');
       } else {
         next.add(channelId);
-        console.log('Added to favorites. New count:', next.size);
+        console.log('✅ Added to favorites. New count:', next.size);
         addToast('Added to favorites! ⭐', 'success');
       }
+      // Force save to localStorage immediately
+      localStorage.setItem("iptv-favorites", JSON.stringify([...next]));
       return next;
     });
   }, [addToast]);
@@ -269,11 +274,18 @@ function App() {
 
   // Handle M3U import
   const handleImport = useCallback((newImportedChannels: Channel[]) => {
+    console.log('📥 Importing channels:', newImportedChannels.length);
+    
     // Save to persistent imported channels state
     setImportedChannels((prev) => {
       const existingUrls = new Set(prev.map((ch) => ch.url));
       const unique = newImportedChannels.filter((ch) => !existingUrls.has(ch.url));
-      return [...prev, ...unique];
+      const updated = [...prev, ...unique];
+      console.log('💾 Saving imported channels to state:', updated.length);
+      // Force save to localStorage immediately
+      localStorage.setItem("iptv-imported-channels", JSON.stringify(updated));
+      console.log('✅ Imported channels saved to localStorage');
+      return updated;
     });
 
     // Also add to the main channels list
@@ -301,7 +313,9 @@ function App() {
     setSelectedCategory("All");
     setSearchQuery("");
     setShowOnlyLive(false);
-  }, []);
+    
+    addToast(`Imported ${newImportedChannels.length} channels! 📁`, 'success');
+  }, [addToast]);
 
   // Test all streams
   const testAllStreams = useCallback(async () => {
@@ -420,11 +434,9 @@ function App() {
                   <span className="text-blue-300 text-sm font-medium">{channels.length} Streams</span>
                 </div>
               )}
-              {favorites.size > 0 && (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                  <span className="text-yellow-300 text-sm font-medium">⭐ {favorites.size} Favorites</span>
-                </div>
-              )}
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                <span className="text-yellow-300 text-sm font-medium">⭐ {favorites.size} Favorites</span>
+              </div>
               {importedCount > 0 && (
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
                   <span className="text-emerald-300 text-sm font-medium">📁 {importedCount} Imported</span>
@@ -714,6 +726,37 @@ function App() {
               <span className="text-green-400 mt-0.5">✅</span>
               <p>Click "Test All" to verify which channels are live. Dead links are hidden with the "Live Only" filter. Click any card to watch.</p>
             </div>
+          </div>
+          
+          {/* Debug Info */}
+          <div className="mt-4 pt-4 border-t border-gray-700/30">
+            <details className="text-xs">
+              <summary className="cursor-pointer text-gray-500 hover:text-gray-300 transition-colors">
+                🔧 Debug Info (click to expand)
+              </summary>
+              <div className="mt-2 space-y-1 text-gray-500 font-mono">
+                <div>Favorites in state: {favorites.size}</div>
+                <div>Favorites in localStorage: {localStorage.getItem("iptv-favorites") ? JSON.parse(localStorage.getItem("iptv-favorites")!).length : 0}</div>
+                <div>Imported channels in state: {importedChannels.length}</div>
+                <div>Imported channels in localStorage: {localStorage.getItem("iptv-imported-channels") ? JSON.parse(localStorage.getItem("iptv-imported-channels")!).length : 0}</div>
+                <div>Total channels loaded: {channels.length}</div>
+                <button
+                  onClick={() => {
+                    console.log('=== DEBUG INFO ===');
+                    console.log('Favorites in state:', favorites.size, [...favorites]);
+                    console.log('Favorites in localStorage:', localStorage.getItem("iptv-favorites"));
+                    console.log('Imported channels in state:', importedChannels.length);
+                    console.log('Imported channels in localStorage:', localStorage.getItem("iptv-imported-channels"));
+                    console.log('Total channels:', channels.length);
+                    console.log('==================');
+                    addToast('Debug info logged to console', 'info');
+                  }}
+                  className="mt-2 px-3 py-1 bg-gray-700/50 hover:bg-gray-700 text-gray-300 rounded text-xs transition-colors"
+                >
+                  Log to Console
+                </button>
+              </div>
+            </details>
           </div>
         </div>
       </main>
