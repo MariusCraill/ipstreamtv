@@ -113,7 +113,7 @@ export default function ChannelCard({ channel, status, onPlay, isFavorite, onTog
       {status !== "dead" && (
         <button
           onClick={() => onPlay(channel)}
-          className="absolute inset-0 flex items-center justify-center bg-blue-600/0 group-hover:bg-blue-600/10 rounded-xl transition-all duration-300 opacity-0 group-hover:opacity-100 z-10"
+          className="absolute inset-0 flex items-center justify-center bg-blue-600/0 group-hover:bg-blue-600/10 rounded-xl transition-all duration-300 opacity-0 group-hover:opacity-100 z-0"
         >
           <div className="w-14 h-14 bg-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-600/30 transform scale-75 group-hover:scale-100 transition-transform duration-300">
             <svg className="w-6 h-6 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
@@ -123,7 +123,7 @@ export default function ChannelCard({ channel, status, onPlay, isFavorite, onTog
         </button>
       )}
 
-      <div className="flex items-start justify-between mb-3 gap-2">
+      <div className="relative z-10 flex items-start justify-between mb-3 gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-xl shrink-0">{getCountryFlag(channel.country)}</span>
           <h3 className="text-white font-medium text-sm leading-tight truncate">
@@ -152,7 +152,7 @@ export default function ChannelCard({ channel, status, onPlay, isFavorite, onTog
         </div>
       </div>
 
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="relative z-10 flex items-center gap-2 flex-wrap">
         <span className={`px-2 py-0.5 rounded-full text-xs border ${getCategoryColor(channel.category)}`}>
           {channel.category}
         </span>
@@ -163,7 +163,7 @@ export default function ChannelCard({ channel, status, onPlay, isFavorite, onTog
       {status !== "dead" && (
         <button
           onClick={() => onPlay(channel)}
-          className="mt-3 w-full py-2 bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 rounded-lg text-xs font-medium transition-colors border border-blue-500/20 hover:border-blue-500/40"
+          className="relative z-10 mt-3 w-full py-2 bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 rounded-lg text-xs font-medium transition-colors border border-blue-500/20 hover:border-blue-500/40"
         >
           ▶ Watch Now
         </button>
