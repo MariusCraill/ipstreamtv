@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import VideoPlayer from "./components/VideoPlayer";
 import ChannelCard from "./components/ChannelCard";
 import M3UImport from "./components/M3UImport";
+import { ToastContainer, useToast } from "./components/Toast";
 import { Channel, ChannelStatus } from "./types";
 import { parseM3U } from "./utils/m3uParser";
 import { testStreams } from "./utils/streamTester";
@@ -137,6 +138,7 @@ function App() {
     return saved ? JSON.parse(saved) : [];
   });
   const abortRef = useRef<AbortController | null>(null);
+  const { toasts, addToast } = useToast();
 
   // Fetch streams from iptv-org GitHub repository
   const fetchStreams = useCallback(async () => {
@@ -225,16 +227,22 @@ function App() {
 
   // Toggle favorite
   const toggleFavorite = useCallback((channelId: string) => {
+    console.log('Toggling favorite for channel:', channelId);
     setFavorites((prev) => {
       const next = new Set(prev);
-      if (next.has(channelId)) {
+      const isCurrentlyFavorite = next.has(channelId);
+      if (isCurrentlyFavorite) {
         next.delete(channelId);
+        console.log('Removed from favorites. New count:', next.size);
+        addToast('Removed from favorites', 'info');
       } else {
         next.add(channelId);
+        console.log('Added to favorites. New count:', next.size);
+        addToast('Added to favorites! ⭐', 'success');
       }
       return next;
     });
-  }, []);
+  }, [addToast]);
 
   // Clear all imported channels
   const clearImportedChannels = useCallback(() => {
@@ -720,6 +728,9 @@ function App() {
         onImport={handleImport}
         currentImportedCount={importedChannels.length}
       />
+
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} />
     </div>
   );
 }
