@@ -6,9 +6,10 @@ interface M3UImportProps {
   onImport: (channels: Channel[]) => void;
   isOpen: boolean;
   onClose: () => void;
+  currentImportedCount?: number;
 }
 
-export default function M3UImport({ onImport, isOpen, onClose }: M3UImportProps) {
+export default function M3UImport({ onImport, isOpen, onClose, currentImportedCount = 0 }: M3UImportProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [importResult, setImportResult] = useState<{ count: number; fileName: string } | null>(null);
@@ -139,7 +140,14 @@ export default function M3UImport({ onImport, isOpen, onClose }: M3UImportProps)
             </div>
             <div>
               <h3 className="text-white font-semibold text-lg">Import M3U Playlist</h3>
-              <p className="text-gray-400 text-sm">Load your own .m3u files for streaming</p>
+              <p className="text-gray-400 text-sm">
+                Load your own .m3u files for streaming
+                {currentImportedCount > 0 && (
+                  <span className="text-emerald-400 ml-1">
+                    • {currentImportedCount} saved
+                  </span>
+                )}
+              </p>
             </div>
           </div>
           <button
@@ -318,7 +326,7 @@ export default function M3UImport({ onImport, isOpen, onClose }: M3UImportProps)
                 </button>
               </div>
               <p className="text-emerald-400/70 text-xs mt-2 ml-7">
-                💡 The view has switched to show your imported channels. Click any channel to play it directly, or use "Test Imported" to check which are live.
+                💡 Your imported channels are saved and will be available next time you open the app. Click any channel to play it directly, or use "Test Imported" to check which are live.
               </p>
             </div>
           )}

@@ -132,6 +132,10 @@ function App() {
     const saved = localStorage.getItem("iptv-favorites");
     return saved ? new Set(JSON.parse(saved)) : new Set();
   });
+  const [importedChannels, setImportedChannels] = useState<Channel[]>(() => {
+    const saved = localStorage.getItem("iptv-imported-channels");
+    return saved ? JSON.parse(saved) : [];
+  });
   const abortRef = useRef<AbortController | null>(null);
 
   // Fetch streams from iptv-org GitHub repository
@@ -177,11 +181,18 @@ function App() {
         return true;
       });
 
-      setChannels(unique);
+      // Merge with imported channels (loaded from localStorage)
+      const importedUrls = new Set(importedChannels.map((ch) => ch.url));
+      const importedNotInFetched = importedChannels.filter(
+        (ch) => !unique.some((fch) => fch.url === ch.url)
+      );
+      const merged = [...unique, ...importedNotInFetched];
+
+      setChannels(merged);
       setHasFetched(true);
 
       const statuses: Record<string, ChannelStatus> = {};
-      unique.forEach((ch) => {
+      merged.forEach((ch) => {
         statuses[ch.id] = "untested";
       });
       setChannelStatuses(statuses);
@@ -207,6 +218,11 @@ function App() {
     localStorage.setItem("iptv-favorites", JSON.stringify([...favorites]));
   }, [favorites]);
 
+  // Save imported channels to localStorage
+  useEffect(() => {
+    localStorage.setItem("iptv-imported-channels", JSON.stringify(importedChannels));
+  }, [importedChannels]);
+
   // Toggle favorite
   const toggleFavorite = useCallback((channelId: string) => {
     setFavorites((prev) => {
@@ -220,12 +236,43 @@ function App() {
     });
   }, []);
 
+  // Clear all imported channels
+  const clearImportedChannels = useCallback(() => {
+    if (window.confirm("Are you sure you want to clear all imported channels? This cannot be undone.")) {
+      setImportedChannels([]);
+      setChannels((prev) => prev.filter((ch) => ch.source !== "imported"));
+      setChannelStatuses((prev) => {
+        const next = { ...prev };
+        Object.keys(next).forEach((key) => {
+          if (key.startsWith("imported-")) {
+            delete next[key];
+          }
+        });
+        return next;
+      });
+      // Also remove any favorites that were for imported channels
+      setFavorites((prev) => {
+        const next = new Set(prev);
+        // We can't easily know which favorites were imported, so we'll leave them
+        return next;
+      });
+    }
+  }, []);
+
   // Handle M3U import
-  const handleImport = useCallback((importedChannels: Channel[]) => {
+  const handleImport = useCallback((newImportedChannels: Channel[]) => {
+    // Save to persistent imported channels state
+    setImportedChannels((prev) => {
+      const existingUrls = new Set(prev.map((ch) => ch.url));
+      const unique = newImportedChannels.filter((ch) => !existingUrls.has(ch.url));
+      return [...prev, ...unique];
+    });
+
+    // Also add to the main channels list
     setChannels((prev) => {
       // Remove duplicates
       const existingUrls = new Set(prev.map((ch) => ch.url));
-      const newChannels = importedChannels.filter((ch) => !existingUrls.has(ch.url));
+      const newChannels = newImportedChannels.filter((ch) => !existingUrls.has(ch.url));
       
       const updated = [...prev, ...newChannels];
       
@@ -373,6 +420,15 @@ function App() {
               {importedCount > 0 && (
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
                   <span className="text-emerald-300 text-sm font-medium">📁 {importedCount} Imported</span>
+                  <button
+                    onClick={clearImportedChannels}
+                    className="text-emerald-400/60 hover:text-red-400 transition-colors"
+                    title="Clear all imported channels"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 </div>
               )}
               {hasTested && (
@@ -644,7 +700,7 @@ function App() {
             </div>
             <div className="flex items-start gap-2">
               <span className="text-emerald-400 mt-0.5">📁</span>
-              <p>Import your own M3U playlists (like scraped_live_streams.m3u) via the "Import M3U" button. Supports file upload, paste, or URL fetch.</p>
+              <p>Import your own M3U playlists (like scraped_live_streams.m3u) via the "Import M3U" button. Imported channels are <strong className="text-emerald-300">saved automatically</strong> and will be available next time you open the app.</p>
             </div>
             <div className="flex items-start gap-2">
               <span className="text-green-400 mt-0.5">✅</span>
@@ -662,6 +718,7 @@ function App() {
         isOpen={showImportModal}
         onClose={() => setShowImportModal(false)}
         onImport={handleImport}
+        currentImportedCount={importedChannels.length}
       />
     </div>
   );
