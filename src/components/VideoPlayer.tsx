@@ -13,6 +13,7 @@ export default function VideoPlayer({ channel, onClose }: VideoPlayerProps) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     if (!channel || !videoRef.current) return;
@@ -29,15 +30,56 @@ export default function VideoPlayer({ channel, onClose }: VideoPlayerProps) {
     }
 
     const url = channel.url;
+    let loadTimeout: ReturnType<typeof setTimeout>;
 
-    if (url.includes(".m3u8")) {
+    // Determine if this is an HLS stream
+    const isHLS = url.includes(".m3u8") || 
+                  url.includes("/hls/") || 
+                  url.includes("/live/") ||
+                  url.includes("master.m3u8") ||
+                  url.includes("playlist.m3u8") ||
+                  url.includes("/manifest") ||
+                  url.includes("index.m3u8");
+
+    // Set a loading timeout - use a flag to track if we've already resolved
+    let didLoad = false;
+    loadTimeout = setTimeout(() => {
+      if (!didLoad) {
+        // If still loading after 15 seconds, show error
+        setError("Stream is taking too long to load. It may be offline or geo-blocked.");
+        setIsLoading(false);
+      }
+    }, 15000);
+
+    const handleLoadSuccess = () => {
+      didLoad = true;
+      clearTimeout(loadTimeout);
+      setIsLoading(false);
+      video.play().then(() => setIsPlaying(true)).catch(() => {
+        // Retry play after short delay
+        setTimeout(() => {
+          video.play().then(() => setIsPlaying(true)).catch(() => {});
+        }, 100);
+      });
+    };
+
+    const handleError = (msg?: string) => {
+      didLoad = true;
+      clearTimeout(loadTimeout);
+      setIsLoading(false);
+      setError(msg || "Stream unavailable. The channel may be offline or geo-blocked.");
+    };
+
+    if (isHLS) {
       if (Hls.isSupported()) {
         const hls = new Hls({
           enableWorker: true,
           lowLatencyMode: true,
           xhrSetup: (xhr) => {
-            xhr.timeout = 10000;
+            xhr.timeout = 15000;
           },
+          maxBufferLength: 30,
+          maxMaxBufferLength: 60,
         });
 
         hlsRef.current = hls;
@@ -45,23 +87,33 @@ export default function VideoPlayer({ channel, onClose }: VideoPlayerProps) {
         hls.attachMedia(video);
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          setIsLoading(false);
-          video.play().then(() => setIsPlaying(true)).catch(() => {});
+          handleLoadSuccess();
         });
 
         hls.on(Hls.Events.ERROR, (_, data) => {
+          console.log("HLS Error:", data);
           if (data.fatal) {
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
-                setError("Network error - stream may be offline");
-                setIsLoading(false);
+                // Try to recover once
+                if (retryCount < 2) {
+                  setRetryCount(c => c + 1);
+                  hls.startLoad();
+                } else {
+                  // Last resort: try native video element
+                  hls.destroy();
+                  hlsRef.current = null;
+                  video.src = url;
+                  video.addEventListener("loadeddata", handleLoadSuccess);
+                  video.addEventListener("error", () => handleError("Network error - stream may be offline or geo-blocked"));
+                  video.load();
+                }
                 break;
               case Hls.ErrorTypes.MEDIA_ERROR:
                 hls.recoverMediaError();
                 break;
               default:
-                setError("Stream unavailable");
-                setIsLoading(false);
+                handleError("Stream unavailable");
                 break;
             }
           }
@@ -69,38 +121,41 @@ export default function VideoPlayer({ channel, onClose }: VideoPlayerProps) {
       } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
         // Native HLS support (Safari)
         video.src = url;
-        video.addEventListener("loadedmetadata", () => {
-          setIsLoading(false);
-          video.play().then(() => setIsPlaying(true)).catch(() => {});
-        });
-        video.addEventListener("error", () => {
-          setError("Stream unavailable");
-          setIsLoading(false);
-        });
+        video.addEventListener("loadedmetadata", handleLoadSuccess);
+        video.addEventListener("canplay", handleLoadSuccess);
+        video.addEventListener("error", () => handleError());
+        video.load();
       } else {
-        setError("HLS not supported in this browser");
-        setIsLoading(false);
+        // Fallback: try native video element anyway
+        video.src = url;
+        video.addEventListener("loadeddata", handleLoadSuccess);
+        video.addEventListener("canplay", handleLoadSuccess);
+        video.addEventListener("error", () => handleError("HLS playback not supported in this browser"));
+        video.load();
       }
     } else {
-      // Direct stream URL
+      // Direct stream URL - try native video element
       video.src = url;
-      video.addEventListener("loadeddata", () => {
-        setIsLoading(false);
-        video.play().then(() => setIsPlaying(true)).catch(() => {});
+      video.addEventListener("loadeddata", handleLoadSuccess);
+      video.addEventListener("canplay", handleLoadSuccess);
+      video.addEventListener("error", (e) => {
+        console.log("Video error:", e);
+        handleError();
       });
-      video.addEventListener("error", () => {
-        setError("Stream unavailable");
-        setIsLoading(false);
-      });
+      video.load();
     }
 
     return () => {
+      clearTimeout(loadTimeout);
       if (hlsRef.current) {
         hlsRef.current.destroy();
         hlsRef.current = null;
       }
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
     };
-  }, [channel]);
+  }, [channel, retryCount]);
 
   const togglePlay = () => {
     if (!videoRef.current) return;
@@ -110,6 +165,12 @@ export default function VideoPlayer({ channel, onClose }: VideoPlayerProps) {
     } else {
       videoRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
     }
+  };
+
+  const handleRetry = () => {
+    setError(null);
+    setIsLoading(true);
+    setRetryCount(c => c + 1);
   };
 
   if (!channel) return null;
@@ -125,6 +186,7 @@ export default function VideoPlayer({ channel, onClose }: VideoPlayerProps) {
               <h3 className="text-white font-semibold text-lg">{channel.name}</h3>
               <p className="text-gray-400 text-sm">
                 {channel.country} • {channel.category}
+                {channel.source === "imported" && " • 📁 Imported"}
               </p>
             </div>
           </div>
@@ -154,6 +216,7 @@ export default function VideoPlayer({ channel, onClose }: VideoPlayerProps) {
               <div className="text-center">
                 <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
                 <p className="text-white text-sm">Connecting to stream...</p>
+                <p className="text-gray-400 text-xs mt-1">This may take a moment</p>
               </div>
             </div>
           )}
@@ -164,13 +227,21 @@ export default function VideoPlayer({ channel, onClose }: VideoPlayerProps) {
               <div className="text-center p-6">
                 <div className="text-4xl mb-3">📡</div>
                 <p className="text-red-400 font-medium mb-2">Stream Error</p>
-                <p className="text-gray-400 text-sm">{error}</p>
-                <button
-                  onClick={onClose}
-                  className="mt-4 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors"
-                >
-                  Close
-                </button>
+                <p className="text-gray-400 text-sm mb-4 max-w-md">{error}</p>
+                <div className="flex gap-2 justify-center">
+                  <button
+                    onClick={handleRetry}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm transition-colors"
+                  >
+                    🔄 Retry
+                  </button>
+                  <button
+                    onClick={onClose}
+                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -198,6 +269,11 @@ export default function VideoPlayer({ channel, onClose }: VideoPlayerProps) {
             </span>
           </div>
           <div className="flex items-center gap-2">
+            {channel.source === "imported" && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded text-xs font-medium">
+                📁 Imported
+              </span>
+            )}
             <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs font-medium">
               <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
               LIVE

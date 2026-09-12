@@ -29,24 +29,18 @@ export default function M3UImport({ onImport, isOpen, onClose }: M3UImportProps)
     try {
       const file = files[0];
       
-      // Validate file type
-      const validExtensions = [".m3u", ".m3u8", ".txt"];
-      const fileName = file.name.toLowerCase();
-      const isValid = validExtensions.some(ext => fileName.endsWith(ext));
-      
-      if (!isValid) {
-        throw new Error("Please select a valid M3U/M3U8/TXT file");
-      }
-
       // Validate file size (max 50MB)
       if (file.size > 50 * 1024 * 1024) {
         throw new Error("File too large. Maximum size is 50MB");
       }
 
+      // Read and parse the file
       const channels = await parseM3UFile(file);
       
       if (channels.length === 0) {
-        throw new Error("No valid streams found in the file");
+        throw new Error(
+          `No valid streams found in "${file.name}". Make sure the file is in M3U/M3U8 format with valid stream URLs (http:// or https://).`
+        );
       }
 
       setImportResult({ count: channels.length, fileName: file.name });
@@ -211,7 +205,7 @@ export default function M3UImport({ onImport, isOpen, onClose }: M3UImportProps)
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".m3u,.m3u8,.txt"
+                  accept=".m3u,.m3u8,.txt,*/*"
                   onChange={(e) => handleFileSelect(e.target.files)}
                   className="hidden"
                 />
@@ -225,7 +219,7 @@ export default function M3UImport({ onImport, isOpen, onClose }: M3UImportProps)
                   or click to browse
                 </p>
                 <p className="text-gray-500 text-xs">
-                  Supports .m3u, .m3u8, .txt files (max 50MB)
+                  Supports .m3u, .m3u8, .txt files (max 50MB) • e.g., scraped_live_streams.m3u
                 </p>
               </div>
             </div>
@@ -306,21 +300,26 @@ export default function M3UImport({ onImport, isOpen, onClose }: M3UImportProps)
 
           {/* Success */}
           {importResult && (
-            <div className="mt-4 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-300 text-sm flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>
-                  Successfully imported <strong>{importResult.count}</strong> streams from <strong>{importResult.fileName}</strong>
-                </span>
+            <div className="mt-4 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-emerald-300 text-sm">
+                    Successfully imported <strong>{importResult.count}</strong> streams
+                  </span>
+                </div>
+                <button
+                  onClick={onClose}
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs font-medium transition-colors"
+                >
+                  View Channels →
+                </button>
               </div>
-              <button
-                onClick={onClose}
-                className="px-3 py-1 bg-emerald-600/30 hover:bg-emerald-600/50 rounded-lg text-xs transition-colors"
-              >
-                Done
-              </button>
+              <p className="text-emerald-400/70 text-xs mt-2 ml-7">
+                💡 The view has switched to show your imported channels. Click any channel to play it directly, or use "Test Imported" to check which are live.
+              </p>
             </div>
           )}
         </div>

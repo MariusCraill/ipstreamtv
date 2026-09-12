@@ -218,6 +218,12 @@ function App() {
       
       return updated;
     });
+
+    // Auto-switch to show only imported channels after import
+    setSelectedCountry("Imported");
+    setSelectedCategory("All");
+    setSearchQuery("");
+    setShowOnlyLive(false);
   }, []);
 
   // Test all streams
