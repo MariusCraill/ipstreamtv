@@ -411,7 +411,35 @@ function App() {
     }
   }, []);
 
+  // Remove all dead streams
+  const removeDeadStreams = useCallback(() => {
+    const deadChannels = channels.filter((ch) => channelStatuses[ch.id] === "dead");
+    const deadCount = deadChannels.length;
+    
+    if (deadCount === 0) {
+      addToast('No dead streams to remove', 'info');
+      return;
+    }
 
+    // Remove dead channels from main list
+    setChannels((prev) => prev.filter((ch) => channelStatuses[ch.id] !== "dead"));
+    
+    // Remove dead channels from imported channels
+    setImportedChannels((prev) => {
+      const updated = prev.filter((ch) => channelStatuses[ch.id] !== "dead");
+      localStorage.setItem("iptv-imported-channels", JSON.stringify(updated));
+      return updated;
+    });
+    
+    // Clean up channel statuses
+    setChannelStatuses((prev) => {
+      const updated = { ...prev };
+      deadChannels.forEach((ch) => delete updated[ch.id]);
+      return updated;
+    });
+
+    addToast(`Removed ${deadCount} dead streams`, 'success');
+  }, [channels, channelStatuses, addToast]);
 
   // Filter channels
   const filteredChannels = channels
@@ -623,6 +651,18 @@ function App() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 6h12M6 12h12M6 18h12" />
                   </svg>
                   Abort
+                </button>
+              )}
+
+              {hasTested && deadCount > 0 && (
+                <button
+                  onClick={removeDeadStreams}
+                  className="px-4 py-3 rounded-xl font-medium text-sm transition-all flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-500/20"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Remove Dead ({deadCount})
                 </button>
               )}
             </div>
