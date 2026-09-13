@@ -125,12 +125,18 @@ export function testStream(channel: Channel): Promise<StreamTestResult> {
 export async function testStreams(
   channels: Channel[],
   concurrency: number = 3,
-  onProgress?: (tested: number, total: number) => void
+  onProgress?: (tested: number, total: number) => void,
+  abortSignal?: AbortSignal
 ): Promise<StreamTestResult[]> {
   const results: StreamTestResult[] = [];
   let tested = 0;
 
   const testBatch = async (batch: Channel[]) => {
+    // Check if aborted before starting batch
+    if (abortSignal?.aborted) {
+      return;
+    }
+
     const batchResults = await Promise.allSettled(
       batch.map((channel) => testStream(channel))
     );
@@ -152,6 +158,11 @@ export async function testStreams(
 
   // Process in batches
   for (let i = 0; i < channels.length; i += concurrency) {
+    // Check if aborted before each batch
+    if (abortSignal?.aborted) {
+      break;
+    }
+    
     const batch = channels.slice(i, i + concurrency);
     await testBatch(batch);
   }

@@ -138,6 +138,7 @@ function App() {
     return saved ? JSON.parse(saved) : [];
   });
   const abortRef = useRef<AbortController | null>(null);
+  const testAbortRef = useRef<AbortController | null>(null);
   const { toasts, addToast } = useToast();
 
   // Fetch streams from iptv-org GitHub repository
@@ -321,6 +322,9 @@ function App() {
   const testAllStreams = useCallback(async () => {
     if (channels.length === 0) return;
 
+    // Create abort controller for this test run
+    testAbortRef.current = new AbortController();
+
     setIsTesting(true);
     setHasTested(true);
 
@@ -335,8 +339,12 @@ function App() {
       4,
       (tested, total) => {
         setTestProgress({ tested, total });
-      }
+      },
+      testAbortRef.current.signal
     );
+
+    // Check if test was aborted
+    const wasAborted = testAbortRef.current.signal.aborted;
 
     const newStatuses: Record<string, ChannelStatus> = {};
     results.forEach((result) => {
@@ -344,12 +352,21 @@ function App() {
     });
     setChannelStatuses(newStatuses);
     setIsTesting(false);
-  }, [channels]);
+    
+    if (wasAborted) {
+      addToast('Testing aborted', 'info');
+    }
+    
+    testAbortRef.current = null;
+  }, [channels, addToast]);
 
   // Test only imported streams
   const testImportedStreams = useCallback(async () => {
     const importedChannels = channels.filter((ch) => ch.source === "imported");
     if (importedChannels.length === 0) return;
+
+    // Create abort controller for this test run
+    testAbortRef.current = new AbortController();
 
     setIsTesting(true);
     setHasTested(true);
@@ -365,8 +382,12 @@ function App() {
       4,
       (tested, total) => {
         setTestProgress({ tested, total });
-      }
+      },
+      testAbortRef.current.signal
     );
+
+    // Check if test was aborted
+    const wasAborted = testAbortRef.current.signal.aborted;
 
     const newStatuses: Record<string, ChannelStatus> = {};
     results.forEach((result) => {
@@ -374,7 +395,21 @@ function App() {
     });
     setChannelStatuses((prev) => ({ ...prev, ...newStatuses }));
     setIsTesting(false);
-  }, [channels]);
+    
+    if (wasAborted) {
+      addToast('Testing aborted', 'info');
+    }
+    
+    testAbortRef.current = null;
+  }, [channels, addToast]);
+
+  // Abort testing
+  const abortTesting = useCallback(() => {
+    if (testAbortRef.current) {
+      testAbortRef.current.abort();
+      testAbortRef.current = null;
+    }
+  }, []);
 
 
 
@@ -578,6 +613,18 @@ function App() {
                   </>
                 )}
               </button>
+
+              {isTesting && (
+                <button
+                  onClick={abortTesting}
+                  className="px-4 py-3 rounded-xl font-medium text-sm transition-all flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-500/20 animate-pulse"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 6h12M6 12h12M6 18h12" />
+                  </svg>
+                  Abort
+                </button>
+              )}
             </div>
           </div>
 
