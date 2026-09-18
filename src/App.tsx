@@ -130,7 +130,7 @@ function App() {
   const [hasFetched, setHasFetched] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [favorites, setFavorites] = useState<Set<string>>(() => {
     const saved = localStorage.getItem("iptv-favorites");
     return saved ? new Set(JSON.parse(saved)) : new Set();

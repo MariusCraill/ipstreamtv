@@ -354,50 +354,41 @@ export default function VideoPlayer({ channel, channels, onClose, onChannelChang
             </div>
           </div>
         )}
-        {/* Header - TV Friendly */}
-        <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-700 bg-gray-900/95 backdrop-blur-sm shrink-0">
-          <button
-            onClick={onClose}
-            className="flex items-center gap-2 px-4 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-xl transition-colors text-base font-medium"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Back
-          </button>
-          
-          <div className="flex items-center gap-3 flex-1 justify-center">
-            <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-            <div className="text-center">
-              <h3 className="text-white font-bold text-xl md:text-2xl truncate max-w-md">{channel.name}</h3>
-              <p className="text-gray-400 text-sm md:text-base">
-                {channel.country} • {channel.category}
-                {channel.source === "imported" && " • 📁 Imported"}
-              </p>
+        {/* Header - TV Friendly - Hidden in fullscreen */}
+        {!isFullscreen && (
+          <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-700 bg-gray-900/95 backdrop-blur-sm shrink-0">
+            <button
+              onClick={onClose}
+              className="flex items-center gap-2 px-4 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-xl transition-colors text-base font-medium"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Back
+            </button>
+            
+            <div className="flex items-center gap-3 flex-1 justify-center">
+              <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+              <div className="text-center">
+                <h3 className="text-white font-bold text-xl md:text-2xl truncate max-w-md">{channel.name}</h3>
+                <p className="text-gray-400 text-sm md:text-base">
+                  {channel.country} • {channel.category}
+                  {channel.source === "imported" && " • 📁 Imported"}
+                </p>
+              </div>
             </div>
-          </div>
 
-          <button
-            onClick={toggleFullscreen}
-            className="flex items-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-colors text-base font-medium"
-          >
-            {isFullscreen ? (
-              <>
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
-                </svg>
-                Exit Fullscreen
-              </>
-            ) : (
-              <>
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                </svg>
-                Fullscreen
-              </>
-            )}
-          </button>
-        </div>
+            <button
+              onClick={toggleFullscreen}
+              className="flex items-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-colors text-base font-medium"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+              </svg>
+              Fullscreen
+            </button>
+          </div>
+        )}
 
         {/* Video Container */}
         <div className={`relative ${isFullscreen ? 'flex-1' : 'aspect-video'} bg-black`}>
@@ -446,54 +437,56 @@ export default function VideoPlayer({ channel, channels, onClose, onChannelChang
           )}
         </div>
 
-        {/* Controls Bar - TV Friendly */}
-        <div className="p-4 md:p-6 flex items-center justify-between bg-gray-900/95 backdrop-blur-sm shrink-0">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={togglePlay}
-              className="flex items-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors text-base font-medium"
-            >
-              {isPlaying ? (
-                <>
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
-                  </svg>
-                  Pause
-                </>
-              ) : (
-                <>
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                  Play
-                </>
-              )}
-            </button>
-            <span className="text-gray-300 text-base md:text-lg">
-              {isPlaying ? "▶ Playing Live" : "⏸ Paused"}
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowChannelList(true)}
-              className="flex items-center gap-2 px-5 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition-colors text-base font-medium"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-              Channels
-            </button>
-            {channel.source === "imported" && (
-              <span className="inline-flex items-center gap-2 px-3 py-2 bg-emerald-500/20 text-emerald-400 rounded-lg text-sm md:text-base font-medium">
-                📁 Imported
+        {/* Controls Bar - TV Friendly - Hidden in fullscreen */}
+        {!isFullscreen && (
+          <div className="p-4 md:p-6 flex items-center justify-between bg-gray-900/95 backdrop-blur-sm shrink-0">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={togglePlay}
+                className="flex items-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors text-base font-medium"
+              >
+                {isPlaying ? (
+                  <>
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                    </svg>
+                    Pause
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                    Play
+                  </>
+                )}
+              </button>
+              <span className="text-gray-300 text-base md:text-lg">
+                {isPlaying ? "▶ Playing Live" : "⏸ Paused"}
               </span>
-            )}
-            <span className="inline-flex items-center gap-2 px-3 py-2 bg-green-500/20 text-green-400 rounded-lg text-sm md:text-base font-medium">
-              <span className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></span>
-              LIVE
-            </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowChannelList(true)}
+                className="flex items-center gap-2 px-5 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition-colors text-base font-medium"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+                Channels
+              </button>
+              {channel.source === "imported" && (
+                <span className="inline-flex items-center gap-2 px-3 py-2 bg-emerald-500/20 text-emerald-400 rounded-lg text-sm md:text-base font-medium">
+                  📁 Imported
+                </span>
+              )}
+              <span className="inline-flex items-center gap-2 px-3 py-2 bg-green-500/20 text-green-400 rounded-lg text-sm md:text-base font-medium">
+                <span className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></span>
+                LIVE
+              </span>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
