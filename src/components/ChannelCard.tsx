@@ -124,9 +124,9 @@ export default function ChannelCard({ channel, status, onPlay, isFavorite, onTog
       )}
 
       <div className="relative z-10 flex items-start justify-between mb-3 gap-2">
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           <span className="text-xl shrink-0">{getCountryFlag(channel.country)}</span>
-          <h3 className="text-white font-medium text-sm leading-tight truncate">
+          <h3 className="text-white font-medium text-sm leading-tight break-words">
             {channel.name}
           </h3>
         </div>
