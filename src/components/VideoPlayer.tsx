@@ -209,15 +209,16 @@ export default function VideoPlayer({ channel, channels, onClose, onChannelChang
     };
   }, []);
 
-  // Handle escape key to close player
+  // Handle escape key - always close player and exit fullscreen in one press
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (isFullscreen) {
-          document.exitFullscreen();
-        } else {
-          onClose();
+        // Exit fullscreen if active
+        if (document.fullscreenElement) {
+          document.exitFullscreen().catch(() => {});
         }
+        // Always close the player and return to main screen
+        onClose();
       }
     };
 
@@ -225,7 +226,7 @@ export default function VideoPlayer({ channel, channels, onClose, onChannelChang
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isFullscreen, onClose]);
+  }, [onClose]);
 
   // Filter channels based on search and favorites
   const filteredChannels = channels.filter((ch) => {
@@ -255,7 +256,12 @@ export default function VideoPlayer({ channel, channels, onClose, onChannelChang
             <div className="p-4 md:p-6 border-b border-gray-700 bg-gray-900/95 shrink-0">
               <div className="flex items-center justify-between mb-4">
                 <button
-                  onClick={() => setShowChannelList(false)}
+                  onClick={() => {
+                    if (document.fullscreenElement) {
+                      document.exitFullscreen().catch(() => {});
+                    }
+                    onClose();
+                  }}
                   className="flex items-center gap-2 px-4 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-xl transition-colors text-base font-medium"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -358,7 +364,12 @@ export default function VideoPlayer({ channel, channels, onClose, onChannelChang
         {!isFullscreen && (
           <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-700 bg-gray-900/95 backdrop-blur-sm shrink-0">
             <button
-              onClick={onClose}
+              onClick={() => {
+                if (document.fullscreenElement) {
+                  document.exitFullscreen().catch(() => {});
+                }
+                onClose();
+              }}
               className="flex items-center gap-2 px-4 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-xl transition-colors text-base font-medium"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -426,7 +437,12 @@ export default function VideoPlayer({ channel, channels, onClose, onChannelChang
                     🔄 Retry
                   </button>
                   <button
-                    onClick={onClose}
+                    onClick={() => {
+                      if (document.fullscreenElement) {
+                        document.exitFullscreen().catch(() => {});
+                      }
+                      onClose();
+                    }}
                     className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl text-lg font-medium transition-colors"
                   >
                     ← Back
