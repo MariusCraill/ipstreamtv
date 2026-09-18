@@ -294,6 +294,39 @@ function App() {
     }
   }, []);
 
+  // Export imported channels as M3U file
+  const exportImportedChannels = useCallback(() => {
+    if (importedChannels.length === 0) {
+      addToast('No imported channels to export', 'info');
+      return;
+    }
+
+    // Generate M3U content
+    let m3uContent = '#EXTM3U\n';
+    importedChannels.forEach((ch) => {
+      const logo = ch.logo ? ` tvg-logo="${ch.logo}"` : '';
+      const group = ` group-title="${ch.category}"`;
+      const country = ` tvg-country="${ch.country}"`;
+      const language = ` tvg-language="${ch.language}"`;
+      
+      m3uContent += `#EXTINF:-1${logo}${group}${country}${language},${ch.name}\n`;
+      m3uContent += `${ch.url}\n`;
+    });
+
+    // Create and download file
+    const blob = new Blob([m3uContent], { type: 'audio/x-mpegurl' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `iptv-imported-channels-${new Date().toISOString().split('T')[0]}.m3u`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    addToast(`Exported ${importedChannels.length} channels`, 'success');
+  }, [importedChannels, addToast]);
+
   // Handle M3U import
   const handleImport = useCallback((newImportedChannels: Channel[]) => {
     console.log('📥 Importing channels:', newImportedChannels.length);
@@ -524,6 +557,15 @@ function App() {
               {importedCount > 0 && (
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
                   <span className="text-emerald-300 text-sm font-medium">📁 {importedCount} Imported</span>
+                  <button
+                    onClick={exportImportedChannels}
+                    className="text-emerald-400/60 hover:text-emerald-300 transition-colors"
+                    title="Export imported channels as M3U file"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                  </button>
                   <button
                     onClick={clearImportedChannels}
                     className="text-emerald-400/60 hover:text-red-400 transition-colors"
@@ -934,6 +976,7 @@ function App() {
         isOpen={showImportModal}
         onClose={() => setShowImportModal(false)}
         onImport={handleImport}
+        onExport={exportImportedChannels}
         currentImportedCount={importedChannels.length}
       />
 

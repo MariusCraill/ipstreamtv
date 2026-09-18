@@ -7,9 +7,10 @@ interface M3UImportProps {
   isOpen: boolean;
   onClose: () => void;
   currentImportedCount?: number;
+  onExport?: () => void;
 }
 
-export default function M3UImport({ onImport, isOpen, onClose, currentImportedCount = 0 }: M3UImportProps) {
+export default function M3UImport({ onImport, isOpen, onClose, currentImportedCount = 0, onExport }: M3UImportProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [importResult, setImportResult] = useState<{ count: number; fileName: string } | null>(null);
@@ -334,9 +335,22 @@ export default function M3UImport({ onImport, isOpen, onClose, currentImportedCo
 
         {/* Footer */}
         <div className="px-5 py-3 border-t border-gray-700 bg-gray-800/30">
-          <p className="text-gray-500 text-xs text-center">
-            💡 Tip: You can import M3U files from services like scraped_live_streams.m3u, iptv-org playlists, or any standard M3U format
-          </p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-gray-500 text-xs">
+              💡 Tip: Import M3U files or export your channels to use on other devices
+            </p>
+            {onExport && currentImportedCount > 0 && (
+              <button
+                onClick={onExport}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Export
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
