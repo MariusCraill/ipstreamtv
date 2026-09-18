@@ -209,6 +209,17 @@ export default function VideoPlayer({ channel, channels, onClose, onChannelChang
     };
   }, []);
 
+  // Auto-enter fullscreen on mount
+  useEffect(() => {
+    if (channel && containerRef.current && !document.fullscreenElement) {
+      containerRef.current.requestFullscreen().then(() => {
+        setIsFullscreen(true);
+      }).catch((err) => {
+        console.log('Auto-fullscreen failed:', err);
+      });
+    }
+  }, [channel]);
+
   // Handle escape key - always close player and exit fullscreen in one press
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -235,11 +246,19 @@ export default function VideoPlayer({ channel, channels, onClose, onChannelChang
     return matchesSearch && matchesFavorites;
   });
 
-  // Sort: favorites first, then by name
+  // Sort: imported first, then favorites, then by name
   const sortedChannels = [...filteredChannels].sort((a, b) => {
+    // Imported channels first
+    const aImported = a.source === "imported" ? 1 : 0;
+    const bImported = b.source === "imported" ? 1 : 0;
+    if (aImported !== bImported) return bImported - aImported;
+    
+    // Then favorites
     const aFav = favorites.has(a.id) ? 1 : 0;
     const bFav = favorites.has(b.id) ? 1 : 0;
     if (aFav !== bFav) return bFav - aFav;
+    
+    // Then alphabetically
     return a.name.localeCompare(b.name);
   });
 
