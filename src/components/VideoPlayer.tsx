@@ -4,10 +4,13 @@ import { Channel } from "../types";
 
 interface VideoPlayerProps {
   channel: Channel | null;
+  channels: Channel[];
   onClose: () => void;
+  onChannelChange: (channel: Channel) => void;
+  favorites: Set<string>;
 }
 
-export default function VideoPlayer({ channel, onClose }: VideoPlayerProps) {
+export default function VideoPlayer({ channel, channels, onClose, onChannelChange, favorites }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -16,6 +19,9 @@ export default function VideoPlayer({ channel, onClose }: VideoPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showChannelList, setShowChannelList] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
 
   useEffect(() => {
     if (!channel || !videoRef.current) return;
@@ -221,11 +227,133 @@ export default function VideoPlayer({ channel, onClose }: VideoPlayerProps) {
     };
   }, [isFullscreen, onClose]);
 
+  // Filter channels based on search and favorites
+  const filteredChannels = channels.filter((ch) => {
+    const matchesSearch = ch.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesFavorites = !showOnlyFavorites || favorites.has(ch.id);
+    return matchesSearch && matchesFavorites;
+  });
+
+  // Sort: favorites first, then by name
+  const sortedChannels = [...filteredChannels].sort((a, b) => {
+    const aFav = favorites.has(a.id) ? 1 : 0;
+    const bFav = favorites.has(b.id) ? 1 : 0;
+    if (aFav !== bFav) return bFav - aFav;
+    return a.name.localeCompare(b.name);
+  });
+
   if (!channel) return null;
 
   return (
     <div ref={containerRef} className={`fixed inset-0 z-50 flex flex-col ${isFullscreen ? 'bg-black' : 'bg-black/90 backdrop-blur-sm p-4'}`}>
       <div className={`w-full ${isFullscreen ? 'h-full' : 'max-w-6xl mx-auto'} bg-gray-900 ${isFullscreen ? '' : 'rounded-2xl'} overflow-hidden shadow-2xl border border-gray-700 flex flex-col ${isFullscreen ? 'h-full' : ''}`}>
+        
+        {/* Channel List Overlay */}
+        {showChannelList && (
+          <div className="absolute inset-0 z-50 bg-black/95 backdrop-blur-sm flex flex-col">
+            {/* Channel List Header */}
+            <div className="p-4 md:p-6 border-b border-gray-700 bg-gray-900/95 shrink-0">
+              <div className="flex items-center justify-between mb-4">
+                <button
+                  onClick={() => setShowChannelList(false)}
+                  className="flex items-center gap-2 px-4 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-xl transition-colors text-base font-medium"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Close
+                </button>
+                <h2 className="text-white font-bold text-2xl">Channels</h2>
+                <div className="w-24"></div>
+              </div>
+
+              {/* Search and Filter */}
+              <div className="flex gap-3 flex-wrap">
+                <div className="relative flex-1 min-w-[200px]">
+                  <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder="Search channels..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                  />
+                </div>
+                <button
+                  onClick={() => setShowOnlyFavorites(!showOnlyFavorites)}
+                  className={`px-6 py-3 rounded-xl font-medium transition-all flex items-center gap-2 ${
+                    showOnlyFavorites
+                      ? "bg-yellow-600 text-white"
+                      : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                  }`}
+                >
+                  <svg className="w-5 h-5" fill={showOnlyFavorites ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                  </svg>
+                  Favorites
+                </button>
+              </div>
+            </div>
+
+            {/* Channel List */}
+            <div className="flex-1 overflow-y-auto p-4 md:p-6">
+              {sortedChannels.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="text-5xl mb-4">📺</div>
+                  <p className="text-gray-400 text-lg">No channels found</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {sortedChannels.map((ch) => (
+                    <button
+                      key={ch.id}
+                      onClick={() => {
+                        onChannelChange(ch);
+                        setShowChannelList(false);
+                      }}
+                      className={`w-full text-left p-4 rounded-xl transition-all flex items-center gap-4 ${
+                        ch.id === channel.id
+                          ? "bg-blue-600/20 border-2 border-blue-500"
+                          : "bg-gray-800/50 hover:bg-gray-700/50 border-2 border-transparent"
+                      }`}
+                    >
+                      {/* Country Flag */}
+                      <span className="text-3xl shrink-0">
+                        {ch.country === "USA" ? "🇺🇸" : ch.country === "England" ? "🏴󠁧󠁢󠁥󠁮󠁧󠁿" : ch.country === "South Africa" ? "🇿🇦" : ch.country === "Imported" ? "📁" : "🌍"}
+                      </span>
+
+                      {/* Channel Info */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-white font-semibold text-lg truncate">{ch.name}</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-gray-400 text-sm">{ch.category}</span>
+                          {ch.source === "imported" && (
+                            <span className="px-2 py-0.5 rounded text-xs bg-emerald-900/50 text-emerald-300 border border-emerald-700/30">
+                              📁 Imported
+                            </span>
+                          )}
+                          {favorites.has(ch.id) && (
+                            <span className="text-yellow-400">⭐</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Currently Playing Indicator */}
+                      {ch.id === channel.id && (
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></span>
+                          <span className="text-green-400 font-medium">Now Playing</span>
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         {/* Header - TV Friendly */}
         <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-700 bg-gray-900/95 backdrop-blur-sm shrink-0">
           <button
@@ -346,6 +474,15 @@ export default function VideoPlayer({ channel, onClose }: VideoPlayerProps) {
             </span>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowChannelList(true)}
+              className="flex items-center gap-2 px-5 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition-colors text-base font-medium"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+              Channels
+            </button>
             {channel.source === "imported" && (
               <span className="inline-flex items-center gap-2 px-3 py-2 bg-emerald-500/20 text-emerald-400 rounded-lg text-sm md:text-base font-medium">
                 📁 Imported

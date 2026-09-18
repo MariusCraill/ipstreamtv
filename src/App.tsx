@@ -900,7 +900,13 @@ function App() {
       </main>
 
       {/* Video Player Modal */}
-      <VideoPlayer channel={selectedChannel} onClose={() => setSelectedChannel(null)} />
+      <VideoPlayer 
+        channel={selectedChannel} 
+        channels={channels}
+        favorites={favorites}
+        onClose={() => setSelectedChannel(null)} 
+        onChannelChange={setSelectedChannel}
+      />
 
       {/* M3U Import Modal */}
       <M3UImport
