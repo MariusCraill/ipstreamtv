@@ -8,9 +8,11 @@ interface VideoPlayerProps {
   onClose: () => void;
   onChannelChange: (channel: Channel) => void;
   favorites: Set<string>;
+  recentChannels: string[];
+  onAddRecent: (channelId: string) => void;
 }
 
-export default function VideoPlayer({ channel, channels, onClose, onChannelChange, favorites }: VideoPlayerProps) {
+export default function VideoPlayer({ channel, channels, onClose, onChannelChange, favorites, recentChannels, onAddRecent }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -20,6 +22,7 @@ export default function VideoPlayer({ channel, channels, onClose, onChannelChang
   const [retryCount, setRetryCount] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showChannelList, setShowChannelList] = useState(false);
+  const [showMainMenu, setShowMainMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
 
@@ -220,6 +223,13 @@ export default function VideoPlayer({ channel, channels, onClose, onChannelChang
     }
   }, [channel]);
 
+  // Track recently played channel
+  useEffect(() => {
+    if (channel) {
+      onAddRecent(channel.id);
+    }
+  }, [channel, onAddRecent]);
+
   // Handle escape key - always close player and exit fullscreen in one press
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -246,17 +256,25 @@ export default function VideoPlayer({ channel, channels, onClose, onChannelChang
     return matchesSearch && matchesFavorites;
   });
 
-  // Sort: imported first, then favorites, then by name
+  // Sort: recent first, then favorites, then imported, then by name
   const sortedChannels = [...filteredChannels].sort((a, b) => {
-    // Imported channels first
-    const aImported = a.source === "imported" ? 1 : 0;
-    const bImported = b.source === "imported" ? 1 : 0;
-    if (aImported !== bImported) return bImported - aImported;
+    // Recently played first
+    const aRecentIndex = recentChannels.indexOf(a.id);
+    const bRecentIndex = recentChannels.indexOf(b.id);
+    const aIsRecent = aRecentIndex !== -1 ? 1 : 0;
+    const bIsRecent = bRecentIndex !== -1 ? 1 : 0;
+    if (aIsRecent !== bIsRecent) return bIsRecent - aIsRecent;
+    if (aIsRecent && bIsRecent) return aRecentIndex - bRecentIndex;
     
     // Then favorites
     const aFav = favorites.has(a.id) ? 1 : 0;
     const bFav = favorites.has(b.id) ? 1 : 0;
     if (aFav !== bFav) return bFav - aFav;
+    
+    // Then imported
+    const aImported = a.source === "imported" ? 1 : 0;
+    const bImported = b.source === "imported" ? 1 : 0;
+    if (aImported !== bImported) return bImported - aImported;
     
     // Then alphabetically
     return a.name.localeCompare(b.name);
@@ -379,6 +397,86 @@ export default function VideoPlayer({ channel, channels, onClose, onChannelChang
             </div>
           </div>
         )}
+
+        {/* Main Menu Overlay */}
+        {showMainMenu && (
+          <div className="absolute inset-0 z-50 bg-black/95 backdrop-blur-sm flex items-center justify-center">
+            <div className="bg-gray-900 rounded-2xl p-8 max-w-md w-full mx-4 border border-gray-700">
+              <h2 className="text-white font-bold text-3xl mb-6 text-center">Main Menu</h2>
+              <div className="space-y-3">
+                <button
+                  onClick={() => {
+                    if (document.fullscreenElement) {
+                      document.exitFullscreen().catch(() => {});
+                    }
+                    onClose();
+                  }}
+                  className="w-full flex items-center gap-4 p-4 bg-gray-800 hover:bg-gray-700 text-white rounded-xl transition-colors text-lg font-medium"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  </svg>
+                  Back to Main Screen
+                </button>
+
+                <button
+                  onClick={() => {
+                    setShowMainMenu(false);
+                    setShowChannelList(true);
+                  }}
+                  className="w-full flex items-center gap-4 p-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition-colors text-lg font-medium"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                  Channels
+                </button>
+
+                <button
+                  onClick={() => {
+                    setShowMainMenu(false);
+                    setShowChannelList(true);
+                    setShowOnlyFavorites(true);
+                  }}
+                  className="w-full flex items-center gap-4 p-4 bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl transition-colors text-lg font-medium"
+                >
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                  </svg>
+                  Favorites
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (document.fullscreenElement) {
+                      document.exitFullscreen().catch(() => {});
+                    } else {
+                      containerRef.current?.requestFullscreen().catch(() => {});
+                    }
+                    setShowMainMenu(false);
+                  }}
+                  className="w-full flex items-center gap-4 p-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors text-lg font-medium"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                  </svg>
+                  {isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+                </button>
+
+                <button
+                  onClick={() => setShowMainMenu(false)}
+                  className="w-full flex items-center gap-4 p-4 bg-gray-800 hover:bg-gray-700 text-white rounded-xl transition-colors text-lg font-medium"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Close Menu
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Header - TV Friendly - Hidden in fullscreen */}
         {!isFullscreen && (
           <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-700 bg-gray-900/95 backdrop-blur-sm shrink-0">
@@ -501,6 +599,15 @@ export default function VideoPlayer({ channel, channels, onClose, onChannelChang
               </span>
             </div>
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowMainMenu(true)}
+                className="flex items-center gap-2 px-5 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition-colors text-base font-medium"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+                Menu
+              </button>
               <button
                 onClick={() => setShowChannelList(true)}
                 className="flex items-center gap-2 px-5 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition-colors text-base font-medium"

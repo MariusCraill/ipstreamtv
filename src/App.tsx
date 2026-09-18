@@ -135,6 +135,10 @@ function App() {
     const saved = localStorage.getItem("iptv-favorites");
     return saved ? new Set(JSON.parse(saved)) : new Set();
   });
+  const [recentChannels, setRecentChannels] = useState<string[]>(() => {
+    const saved = localStorage.getItem("iptv-recent-channels");
+    return saved ? JSON.parse(saved) : [];
+  });
   const [importedChannels, setImportedChannels] = useState<Channel[]>(() => {
     const saved = localStorage.getItem("iptv-imported-channels");
     return saved ? JSON.parse(saved) : [];
@@ -226,10 +230,25 @@ function App() {
     localStorage.setItem("iptv-favorites", JSON.stringify([...favorites]));
   }, [favorites]);
 
+  // Save recent channels to localStorage
+  useEffect(() => {
+    localStorage.setItem("iptv-recent-channels", JSON.stringify(recentChannels));
+  }, [recentChannels]);
+
   // Save imported channels to localStorage
   useEffect(() => {
     localStorage.setItem("iptv-imported-channels", JSON.stringify(importedChannels));
   }, [importedChannels]);
+
+  // Add channel to recent list
+  const addRecentChannel = useCallback((channelId: string) => {
+    setRecentChannels((prev) => {
+      // Remove if already exists, then add to front
+      const filtered = prev.filter((id) => id !== channelId);
+      const updated = [channelId, ...filtered].slice(0, 20); // Keep last 20
+      return updated;
+    });
+  }, []);
 
   // Toggle favorite
   const toggleFavorite = useCallback((channelId: string) => {
@@ -904,6 +923,8 @@ function App() {
         channel={selectedChannel} 
         channels={channels}
         favorites={favorites}
+        recentChannels={recentChannels}
+        onAddRecent={addRecentChannel}
         onClose={() => setSelectedChannel(null)} 
         onChannelChange={setSelectedChannel}
       />
